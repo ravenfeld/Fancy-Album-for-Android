@@ -1,11 +1,15 @@
 package com.orleonsoft.android.fancy;
 
+import java.io.IOException;
+
 import uk.co.senab.photoview.PhotoViewAttacher;
 import uk.co.senab.photoview.PhotoViewAttacher.OnPhotoTapListener;
 import android.app.ProgressDialog;
+import android.app.WallpaperManager;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
@@ -13,10 +17,12 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.actionbarsherlock.app.SherlockActivity;
 import com.actionbarsherlock.view.Menu;
@@ -72,31 +78,27 @@ public class ImageDetailsActivity extends SherlockActivity {
 		});
 
 		broadcastIntent = new Intent(AppConstants.LOAD_GALLERY_ACTION);
-		if (!getIntent().getExtras().isEmpty()
-				|| getIntent().getExtras() != null) {
+		if (!getIntent().getExtras().isEmpty() || getIntent().getExtras() != null) {
 			try {
-				_idImage = getIntent().getExtras()
-						.getLong(HomeActivity._ID_KEY);
+				_idImage = getIntent().getExtras().getLong(HomeActivity._ID_KEY);
 
-				imageUri = Uri.withAppendedPath(
-						MediaStore.Images.Media.EXTERNAL_CONTENT_URI, ""
-								+ _idImage);
+				imageUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "" + _idImage);
 				new LoadImageTask().execute();
 
 			} catch (Exception e) {
-				AppMsg.makeText(ImageDetailsActivity.this,
-						"Error loading image ", AppMsg.STYLE_ALERT).show();
+				AppMsg.makeText(ImageDetailsActivity.this, "Error loading image ", AppMsg.STYLE_ALERT).show();
 			}
 
 		}
 	}
 
 	private void hideActionBarDelayed(Handler handler) {
-		handler.postDelayed(new Runnable() {
-			public void run() {
-				getSupportActionBar().hide();
-			}
-		}, 2000);
+		/*
+		 * handler.postDelayed(new Runnable() {
+		 * 
+		 * @Override public void run() { getSupportActionBar().hide(); } },
+		 * 2000);
+		 */
 	}
 
 	@Override
@@ -111,13 +113,41 @@ public class ImageDetailsActivity extends SherlockActivity {
 		// TODO Auto-generated method stub
 		getSupportMenuInflater().inflate(R.menu.activity_image_details, menu);
 		MenuItem actionItem = menu.findItem(R.id.action_share);
-		ShareActionProvider actionProvider = (ShareActionProvider) actionItem
-				.getActionProvider();
-		actionProvider
-				.setShareHistoryFileName(ShareActionProvider.DEFAULT_SHARE_HISTORY_FILE_NAME);
+		ShareActionProvider actionProvider = (ShareActionProvider) actionItem.getActionProvider();
+		actionProvider.setShareHistoryFileName(ShareActionProvider.DEFAULT_SHARE_HISTORY_FILE_NAME);
 
 		actionProvider.setShareIntent(createShareIntent());
+
 		return true;
+	}
+
+
+	private void setWallpaper() {
+		try {
+			WallpaperManager wallpaperManager = WallpaperManager.getInstance(this);
+			// import non-scaled bitmap wallpaper
+			BitmapFactory.Options options = new BitmapFactory.Options();
+			options.inScaled = false;
+			Bitmap wallpaper = bitmap;
+
+			if (wallpaperManager.getDesiredMinimumWidth() > wallpaper.getWidth()
+					&& wallpaperManager.getDesiredMinimumHeight() > wallpaper.getHeight()) {
+				// add padding to wallpaper so background image scales correctly
+				int xPadding = Math.max(0, wallpaperManager.getDesiredMinimumWidth() - wallpaper.getWidth()) / 2;
+				int yPadding = Math.max(0, wallpaperManager.getDesiredMinimumHeight() - wallpaper.getHeight()) / 2;
+				Bitmap paddedWallpaper = Bitmap.createBitmap(wallpaperManager.getDesiredMinimumWidth(), wallpaper.getHeight(),
+						Bitmap.Config.ARGB_8888);
+				int[] pixels = new int[wallpaper.getWidth() * wallpaper.getHeight()];
+				wallpaper.getPixels(pixels, 0, wallpaper.getWidth(), 0, 0, wallpaper.getWidth(), wallpaper.getHeight());
+				paddedWallpaper.setPixels(pixels, 0, wallpaper.getWidth(), xPadding, 0, wallpaper.getWidth(), wallpaper.getHeight());
+
+				wallpaperManager.setBitmap(paddedWallpaper);
+			} else {
+				wallpaperManager.setBitmap(wallpaper);
+			}
+		} catch (IOException e) {
+			Log.e("TEST", "failed to set wallpaper");
+		}
 	}
 
 	@Override
@@ -138,7 +168,12 @@ public class ImageDetailsActivity extends SherlockActivity {
 		case R.id.action_rotate_left:
 			rotateBitmap(-90);
 			break;
-
+		case R.id.action_set_wallpaper:
+			setWallpaper();
+			Toast.makeText(ImageDetailsActivity.this,
+					getString(R.string.succes_wallpaper), Toast.LENGTH_SHORT)
+					.show();
+			break;
 		default:
 			break;
 		}
@@ -146,10 +181,8 @@ public class ImageDetailsActivity extends SherlockActivity {
 	}
 
 	public void goHome() {
-		Intent intent = new Intent(ImageDetailsActivity.this,
-				HomeActivity.class);
-		intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
-				| Intent.FLAG_ACTIVITY_SINGLE_TOP);
+		Intent intent = new Intent(ImageDetailsActivity.this, HomeActivity.class);
+		intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 		startActivity(intent);
 	}
 
@@ -165,8 +198,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 	}
 
 	private void lauchFileScan() {
-		Intent mediaScanIntent = new Intent(
-				"android.intent.action.MEDIA_SCANNER_SCAN_FILE");
+		Intent mediaScanIntent = new Intent("android.intent.action.MEDIA_SCANNER_SCAN_FILE");
 		mediaScanIntent.setData(MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
 		ImageDetailsActivity.this.sendBroadcast(mediaScanIntent);
 	}
@@ -199,6 +231,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 			if (isCancelled()) {
 				ImageDetailsActivity.this.runOnUiThread(new Runnable() {
 
+					@Override
 					public void run() {
 						if (progressBar != null) {
 							progressBar.setVisibility(View.GONE);
@@ -208,9 +241,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 
 			}
 			try {
-				bitmap = MediaStore.Images.Media.getBitmap(
-						getContentResolver(), imageUri);
-				
+				bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
 
 			} catch (Exception e) {
 				isThereError = true;
@@ -225,9 +256,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 			super.onPostExecute(isThereError);
 			progressBar.setVisibility(View.GONE);
 			if (isThereError) {
-				AppMsg.makeText(ImageDetailsActivity.this,
-						"Error loading image,try again ", AppMsg.STYLE_ALERT)
-						.show();
+				AppMsg.makeText(ImageDetailsActivity.this, "Error loading image,try again ", AppMsg.STYLE_ALERT).show();
 
 			} else {
 				imageViewPhoto.setVisibility(View.VISIBLE);
@@ -263,6 +292,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 			if (isCancelled()) {
 				ImageDetailsActivity.this.runOnUiThread(new Runnable() {
 
+					@Override
 					public void run() {
 						if (progressDialog != null) {
 							progressDialog.dismiss();
@@ -288,9 +318,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 			super.onPostExecute(isThereError);
 			progressDialog.dismiss();
 			if (isThereError) {
-				AppMsg.makeText(ImageDetailsActivity.this,
-						"Error deleting image try again", AppMsg.STYLE_ALERT)
-						.show();
+				AppMsg.makeText(ImageDetailsActivity.this, "Error deleting image try again", AppMsg.STYLE_ALERT).show();
 			} else {
 				goHome();
 				sendBroadcast(broadcastIntent);

@@ -3,14 +3,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/selectable_background_thumbnail"
+    android:layout_gravity="center"
     android:padding="2dp" >
 
     <ImageView
         android:id="@+id/img_thumbnail"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
+		android:layout_gravity="center"
         android:contentDescription="@string/app_name"
         android:src="@drawable/ic_launcher" />
 

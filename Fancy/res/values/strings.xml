@@ -8,11 +8,11 @@
     <string name="action_take_photo">TAKE PHOTO</string>
     <string name="action_share_app">SHARE</string>
     <string name="action_delete">DELETE</string>
-     <string name="action_rotate_left">Rotate left</string>
-     <string name="action_rotate_right">Rotate right</string>
-     <string name="action_details">Details</string>
-    
+    <string name="action_rotate_left">Rotate left</string>
+    <string name="action_rotate_right">Rotate right</string>
+    <string name="action_details">Details</string>
     <string name="title_detail_activity">Details</string>
-	
+    <string name="action_set_wallpaper">Set as Wallpaper</string>
+    <string name="succes_wallpaper">Wallpaper successfully changed</string>
 
 </resources>
