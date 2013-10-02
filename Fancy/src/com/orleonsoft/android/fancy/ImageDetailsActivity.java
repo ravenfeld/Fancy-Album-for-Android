@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -41,12 +42,12 @@ import com.orleonsoft.android.fancy.views.MyViewPager;
 
 public class ImageDetailsActivity extends SherlockActivity {
 
-
+	private static ShareActionProvider mShareActionProvider;
 	private static HashMap<Uri, Integer> imageUriRotated;
 
 	private Intent broadcastIntent;
 
-	private ViewPager mViewPager;
+	private static ViewPager mViewPager;
 	private SamplePagerAdapter mPageAdapter;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -104,11 +105,11 @@ public class ImageDetailsActivity extends SherlockActivity {
 		// TODO Auto-generated method stub
 		getSupportMenuInflater().inflate(R.menu.activity_image_details, menu);
 		MenuItem actionItem = menu.findItem(R.id.action_share);
-		ShareActionProvider actionProvider = (ShareActionProvider) actionItem.getActionProvider();
-		actionProvider.setShareHistoryFileName(ShareActionProvider.DEFAULT_SHARE_HISTORY_FILE_NAME);
-
-		actionProvider.setShareIntent(createShareIntent());
-
+		mShareActionProvider = (ShareActionProvider) actionItem
+				.getActionProvider();
+		mShareActionProvider
+				.setShareHistoryFileName(ShareActionProvider.DEFAULT_SHARE_HISTORY_FILE_NAME);
+		mShareActionProvider.setShareIntent(createShareIntent());
 		return true;
 	}
 
@@ -176,6 +177,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 					getString(R.string.succes_wallpaper), Toast.LENGTH_SHORT)
 					.show();
 			break;
+
 		default:
 			break;
 		}
@@ -207,11 +209,12 @@ public class ImageDetailsActivity extends SherlockActivity {
 		ImageDetailsActivity.this.sendBroadcast(mediaScanIntent);
 	}
 
-	private Intent createShareIntent() {
+	private static Intent createShareIntent() {
 		Intent shareIntent = new Intent(Intent.ACTION_SEND);
 		shareIntent.setType("image/*");
 		shareIntent.putExtra(Intent.EXTRA_STREAM,
 				imageUri(mViewPager.getCurrentItem()));
+		Log.e("TEST", "position" + mViewPager.getCurrentItem());
 		return shareIntent;
 	}
 
@@ -293,9 +296,9 @@ public class ImageDetailsActivity extends SherlockActivity {
 		Uri imageUri = Uri.withAppendedPath(
 				MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "" + _id);
 
-
 		return imageUri;
 	}
+
 	static class SamplePagerAdapter extends PagerAdapter {
 		private final Context mContext;
 		PhotoViewAttacher photoViewAttacher;
@@ -358,6 +361,13 @@ public class ImageDetailsActivity extends SherlockActivity {
 			return POSITION_NONE;
 		}
 
+		@Override
+		public void finishUpdate(ViewGroup container) {
+			super.finishUpdate(container);
+			if (mShareActionProvider != null) {
+				mShareActionProvider.setShareIntent(createShareIntent());
+			}
+		}
 	}
 
 	private static Bitmap decodeUri(Context context, Uri selectedImage)
@@ -379,11 +389,9 @@ context.getContentResolver()
 
 
 		int scale = 1;
-		while (true) {
-			if (width_tmp < REQUIRED_SIZE_WIDHT
-					|| height_tmp < REQUIRED_SIZE_HEIGHT) {
-				break;
-			}
+		while (width_tmp > REQUIRED_SIZE_WIDHT
+				|| height_tmp > REQUIRED_SIZE_HEIGHT) {
+
 			width_tmp /= 2;
 			height_tmp /= 2;
 			scale *= 2;
