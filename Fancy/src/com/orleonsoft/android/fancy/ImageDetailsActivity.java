@@ -35,6 +35,8 @@ import com.devspark.appmsg.AppMsg;
 import com.orleonsoft.android.fancy.util.Util;
 import com.orleonsoft.android.fancy.views.MyViewPager;
 
+
+
 /**
  * File: ImageDetailActivity.java Autor: Yesid Lazaro Mayoriano Modified :
  * Alexis Lecanu
@@ -76,7 +78,8 @@ public class ImageDetailsActivity extends SherlockActivity {
 
 			} catch (Exception e) {
 				AppMsg.makeText(ImageDetailsActivity.this,
-						"Error loading image ", AppMsg.STYLE_ALERT).show();
+						"Error loading image ", AppMsg.STYLE_ALERT,
+						R.layout.app_msg_detail).show();
 			}
 
 		}
@@ -103,13 +106,19 @@ public class ImageDetailsActivity extends SherlockActivity {
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// TODO Auto-generated method stub
-		getSupportMenuInflater().inflate(R.menu.activity_image_details, menu);
+		if (HomeActivity.PICTURE_ASSET) {
+			getSupportMenuInflater().inflate(
+					R.menu.activity_image_details_internal, menu);
+		} else {
+			getSupportMenuInflater().inflate(R.menu.activity_image_details,
+					menu);
+		}
 		MenuItem actionItem = menu.findItem(R.id.action_share);
 		mShareActionProvider = (ShareActionProvider) actionItem
 				.getActionProvider();
 		mShareActionProvider
 				.setShareHistoryFileName(ShareActionProvider.DEFAULT_SHARE_HISTORY_FILE_NAME);
-		mShareActionProvider.setShareIntent(createShareIntent());
+		mShareActionProvider.setShareIntent(createShareIntent(this));
 		return true;
 	}
 
@@ -121,13 +130,14 @@ public class ImageDetailsActivity extends SherlockActivity {
 			BitmapFactory.Options options = new BitmapFactory.Options();
 			options.inScaled = false;
 
-			Uri uriImage = imageUri(mViewPager.getCurrentItem());
+			Uri uriImage = HomeActivity.galleryUri.get(mViewPager
+.getCurrentItem()).getUri();
 			int rotate = 0;
 			if (imageUriRotated.containsKey(uriImage)) {
 				rotate = imageUriRotated.get(uriImage);
 			}
 
-			Bitmap wallpaper = decodeUri(this, uriImage);
+			Bitmap wallpaper = Util.decodeUri(this, uriImage);
 			wallpaper = Util.rotateBitmap(wallpaper, rotate, false);
 
 			;
@@ -194,7 +204,8 @@ public class ImageDetailsActivity extends SherlockActivity {
 		boolean result = false;
 		
 		int numRows = getContentResolver().delete(
-				imageUri(mViewPager.getCurrentItem()), null, null);
+uriImage, null,
+				null);
 		if (numRows == 1) {
 			lauchFileScan();
 			result = true;
@@ -209,18 +220,19 @@ public class ImageDetailsActivity extends SherlockActivity {
 		ImageDetailsActivity.this.sendBroadcast(mediaScanIntent);
 	}
 
-	private static Intent createShareIntent() {
+	private static Intent createShareIntent(Context context) {
 		Intent shareIntent = new Intent(Intent.ACTION_SEND);
 		shareIntent.setType("image/*");
 		shareIntent.putExtra(Intent.EXTRA_STREAM,
-				imageUri(mViewPager.getCurrentItem()));
+				HomeActivity.galleryUri.get(mViewPager.getCurrentItem()).getUri());
 		Log.e("TEST", "position" + mViewPager.getCurrentItem());
 		return shareIntent;
 	}
 
 	public void rotateBitmap(int grados) {
 
-		Uri imageUriRotate = imageUri(mViewPager.getCurrentItem());
+		Uri imageUriRotate = HomeActivity.galleryUri.get(mViewPager
+.getCurrentItem()).getUri();
 		int rotate = 0;
 		if (imageUriRotated.containsKey(imageUriRotate)) {
 			rotate = imageUriRotated.get(imageUriRotate);
@@ -263,8 +275,10 @@ public class ImageDetailsActivity extends SherlockActivity {
 				});
 
 			}
+
 			try {
-				if (!deleteImage(imageUri(mViewPager.getCurrentItem()))) {
+				if (!deleteImage(HomeActivity.galleryUri.get(
+						mViewPager.getCurrentItem()).getUri())) {
 					isThereError = true;
 				}
 			} catch (Exception e) {
@@ -272,6 +286,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 			}
 
 			return isThereError;
+
 		}
 
 		@Override
@@ -279,8 +294,12 @@ public class ImageDetailsActivity extends SherlockActivity {
 			// TODO Auto-generated method stub
 			super.onPostExecute(isThereError);
 			progressDialog.dismiss();
+
+
 			if (isThereError) {
-				AppMsg.makeText(ImageDetailsActivity.this, "Error deleting image try again", AppMsg.STYLE_ALERT).show();
+				AppMsg.makeText(ImageDetailsActivity.this,
+						"Error deleting image try again", AppMsg.STYLE_ALERT,
+						R.layout.app_msg_detail).show();
 			} else {
 				goHome();
 				sendBroadcast(broadcastIntent);
@@ -290,14 +309,8 @@ public class ImageDetailsActivity extends SherlockActivity {
 
 	}
 
-	private static Uri imageUri(int position) {
-		HomeActivity.galleryCursor.moveToPosition(position);
-		int _id = HomeActivity.galleryCursor.getInt(0);
-		Uri imageUri = Uri.withAppendedPath(
-				MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "" + _id);
 
-		return imageUri;
-	}
+
 
 	static class SamplePagerAdapter extends PagerAdapter {
 		private final Context mContext;
@@ -308,7 +321,9 @@ public class ImageDetailsActivity extends SherlockActivity {
 		}
 		@Override
 		public int getCount() {
-			return HomeActivity.galleryCursor.getCount();
+
+			return HomeActivity.galleryUri.size();
+
 		}
 
 		@Override
@@ -325,14 +340,14 @@ public class ImageDetailsActivity extends SherlockActivity {
 
 
 				imageViewPhoto.setVisibility(View.VISIBLE);
-				Uri uriImage = imageUri(position);
+			Uri uriImage = HomeActivity.galleryUri.get(position).getUri();
 				int rotate =0;
 				if(imageUriRotated.containsKey(uriImage)){
 					rotate = imageUriRotated.get(uriImage);
 				}
 
 			try {
-				Bitmap bitmap = decodeUri(mContext, uriImage);
+				Bitmap bitmap = Util.decodeUri(mContext, uriImage);
 				bitmap = Util.rotateBitmap(bitmap, rotate, false);
 				imageViewPhoto.setImageBitmap(bitmap);
 
@@ -365,41 +380,11 @@ public class ImageDetailsActivity extends SherlockActivity {
 		public void finishUpdate(ViewGroup container) {
 			super.finishUpdate(container);
 			if (mShareActionProvider != null) {
-				mShareActionProvider.setShareIntent(createShareIntent());
+				mShareActionProvider.setShareIntent(createShareIntent(mContext));
 			}
 		}
 	}
 
-	private static Bitmap decodeUri(Context context, Uri selectedImage)
-			throws FileNotFoundException {
-		BitmapFactory.Options o = new BitmapFactory.Options();
-		o.inJustDecodeBounds = true;
-		BitmapFactory.decodeStream(
-context.getContentResolver()
-				.openInputStream(selectedImage), null, o);
-		WallpaperManager wallpaperManager = WallpaperManager
-				.getInstance(context);
-		final int REQUIRED_SIZE_WIDHT = wallpaperManager
-				.getDesiredMinimumWidth();
-		final int REQUIRED_SIZE_HEIGHT = wallpaperManager
-				.getDesiredMinimumHeight();
 
-		int width_tmp = o.outWidth;
-		int height_tmp = o.outHeight;
-
-
-		int scale = 1;
-		while (width_tmp > REQUIRED_SIZE_WIDHT
-				|| height_tmp > REQUIRED_SIZE_HEIGHT) {
-
-			width_tmp /= 2;
-			height_tmp /= 2;
-			scale *= 2;
-		}
-		BitmapFactory.Options o2 = new BitmapFactory.Options();
-		o2.inSampleSize = scale;
-		return BitmapFactory.decodeStream(context.getContentResolver()
-				.openInputStream(selectedImage), null, o2);
-	}
 
 }

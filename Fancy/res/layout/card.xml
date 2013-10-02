@@ -42,7 +42,7 @@
             android:layout_height="wrap_content"
             android:layout_marginLeft="8dp"
             android:ellipsize="end"
-            android:maxLines="4"
+            android:maxLines="10"
             android:autoLink="web|phone|email"
             android:textColorLink="@color/pink"
             android:text="" />

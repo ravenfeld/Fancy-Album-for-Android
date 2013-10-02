@@ -20,7 +20,7 @@
     <!-- Style for the color title bar -->
     <style name="CustomTitleColorBar" parent="@style/TextAppearance.Sherlock.Widget.ActionBar.Title">
         <item name="android:textColor">@color/title_sherlock_actionbar</item>
-       ele
+      
     </style>
      <style name="CustomMenuColor" parent="@style/TextAppearance.Sherlock.Widget.ActionBar.Menu">
         <item name="android:textColor">@color/title_sherlock_actionbar</item>

@@ -1,8 +1,10 @@
 package com.orleonsoft.android.fancy;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 
@@ -12,6 +14,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -40,6 +43,7 @@ import com.actionbarsherlock.view.ActionMode;
 import com.actionbarsherlock.view.Menu;
 import com.actionbarsherlock.view.MenuItem;
 import com.devspark.appmsg.AppMsg;
+import com.orleonsoft.android.fancy.util.Util;
 
 public class HomeActivity extends SherlockActivity implements
 		OnItemClickListener, OnItemLongClickListener {
@@ -54,7 +58,11 @@ public class HomeActivity extends SherlockActivity implements
 	private AlbumStorageDirFactory mAlbumStorageDirFactory = null;
 
 	private LayoutInflater mLayoutInflater;
-	public static Cursor galleryCursor;
+	private Cursor galleryCursor;
+	public static boolean PICTURE_ASSET = true;
+	private static int FIRST_PICTURE = R.drawable.image_001;
+	private static int COUNT_PICTURE = 5;
+	public static ArrayList<myPicture> galleryUri;
 	private GridView gridPhotos;
 	private AdapterGridPhotos adapterGridPhotos;
 	private ActionMode mMode;
@@ -74,7 +82,7 @@ public class HomeActivity extends SherlockActivity implements
 			mAlbumStorageDirFactory = new BaseAlbumDirFactory();
 		}
 
-		new LoadPhotoAlbumTask().execute();
+		new LoadPhotoAlbumTask(this).execute();
 
 	}
 
@@ -98,7 +106,7 @@ public class HomeActivity extends SherlockActivity implements
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			Log.d("FANCY", "RECEIVER");
-			new LoadPhotoAlbumTask().execute();
+			new LoadPhotoAlbumTask(context).execute();
 		}
 	};
 
@@ -187,7 +195,13 @@ public class HomeActivity extends SherlockActivity implements
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// TODO Auto-generated method stub
-		getSupportMenuInflater().inflate(R.menu.activity_main, menu);
+		if (PICTURE_ASSET) {
+			getSupportMenuInflater().inflate(R.menu.activity_main_internal,
+					menu);
+		} else {
+			getSupportMenuInflater().inflate(R.menu.activity_main, menu);
+		}
+
 		return super.onCreateOptionsMenu(menu);
 	}
 
@@ -249,7 +263,7 @@ public class HomeActivity extends SherlockActivity implements
 		}
 		if (item.getItemId() == R.id.action_refresh) {
 
-			new LoadPhotoAlbumTask().execute();
+			new LoadPhotoAlbumTask(this).execute();
 
 		}
 		return super.onOptionsItemSelected(item);
@@ -258,6 +272,11 @@ public class HomeActivity extends SherlockActivity implements
 
 	class LoadPhotoAlbumTask extends AsyncTask<Void, Void, Boolean> {
 		private ProgressDialog mProgressDialog;
+		private final Context mContext;
+
+		public LoadPhotoAlbumTask(Context context) {
+			mContext = context;
+		}
 
 		@Override
 		protected void onPreExecute() {
@@ -287,13 +306,30 @@ public class HomeActivity extends SherlockActivity implements
 
 			}
 			try {
+				galleryUri = new ArrayList<myPicture>();
+				if (PICTURE_ASSET) {
 
+					for (int i = 0; i < COUNT_PICTURE; i++) {
+						String fileName = "android.resource://"
+								+ mContext.getPackageName() + "/"
+								+ (FIRST_PICTURE + i);
+
+						galleryUri.add(new myPicture(Uri.parse(fileName),
+								getResources().getResourceEntryName(
+										(FIRST_PICTURE + i))));
+					}
+				} else {
 				galleryCursor = MediaStore.Images.Media.query(
 						getContentResolver(),
 						MediaStore.Images.Media.EXTERNAL_CONTENT_URI, null,
 						null, "date_added DESC");
-
-				adapterGridPhotos = new AdapterGridPhotos(mLayoutInflater);
+					for (int i = 0; i < galleryCursor.getCount(); i++) {
+						galleryUri.add(new myPicture( imageUri(i),galleryCursor.getString(3)));
+					}
+				
+				}
+				adapterGridPhotos = new AdapterGridPhotos(mContext,
+						mLayoutInflater);
 
 			} catch (Exception e) {
 				isThereAnError = true;
@@ -314,13 +350,26 @@ public class HomeActivity extends SherlockActivity implements
 			} else {
 
 				gridPhotos.setAdapter(adapterGridPhotos);
+			
+
+
 				AppMsg.makeText(
 						HomeActivity.this,
-						"Gallery Loaded " + galleryCursor.getCount()
+						"Gallery Loaded " + galleryUri.size()
 								+ " pictures", AppMsg.STYLE_INFO).show();
 			}
 		}
 
+		private Uri imageUri(int position) {
+
+			galleryCursor.moveToPosition(position);
+			int _id = galleryCursor.getInt(0);
+				Uri imageUri = Uri.withAppendedPath(
+						MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "" + _id);
+
+				return imageUri;
+
+		}
 	}
 
 	class AdapterGridPhotos extends BaseAdapter {
@@ -331,14 +380,18 @@ public class HomeActivity extends SherlockActivity implements
 		}
 
 		LayoutInflater mInflater;
+		private final Context mContext;
 
-		public AdapterGridPhotos(LayoutInflater inflater) {
+
+
+		public AdapterGridPhotos(Context context, LayoutInflater inflater) {
+			mContext = context;
 			mInflater = inflater;
 		}
 
 		@Override
 		public int getCount() {
-			return galleryCursor.getCount();
+				return galleryUri.size();
 		}
 
 		@Override
@@ -349,15 +402,20 @@ public class HomeActivity extends SherlockActivity implements
 		@Override
 		public long getItemId(int position) {
 
-			galleryCursor.moveToPosition(position);
-			return galleryCursor.getInt(0);
+				return position;
+
 		}
 
 		@Override
 		public View getView(int position, View convertView, ViewGroup viewGroup) {
 
 			ViewHolder holder;
-
+			Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
+					.getDefaultDisplay();
+			Point diplaySize = new Point();
+			display.getSize(diplaySize);
+			int size = diplaySize.x > diplaySize.y ? diplaySize.y / 2
+					: diplaySize.x / 2;
 			if (convertView == null) {
 				convertView = mInflater.inflate(R.layout.thumbnail_view, null);
 				holder = new ViewHolder();
@@ -365,26 +423,30 @@ public class HomeActivity extends SherlockActivity implements
 						.findViewById(R.id.img_thumbnail);
 				holder.labName = (TextView) convertView
 						.findViewById(R.id.lab_dysplay_name);
-				Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
-						.getDefaultDisplay();
-				Point diplaySize = new Point();
-				display.getSize(diplaySize);
-				int size = diplaySize.x > diplaySize.y ? diplaySize.y / 2
-						: diplaySize.x / 2;
+
 				convertView
 .setLayoutParams(new GridView.LayoutParams(size,
 						size));
 				convertView.setTag(holder);
 			}
 			holder = (ViewHolder) convertView.getTag();
-			galleryCursor.moveToPosition(position);
-			int _id = galleryCursor.getInt(0);
-			holder.imgPhoto.setImageBitmap(MediaStore.Images.Thumbnails
-					.getThumbnail(getContentResolver(), _id,
-							MediaStore.Images.Thumbnails.MINI_KIND, null));
+
+
+				try {
+				myPicture picture = galleryUri.get(position);
+				Uri uri = picture.getUri();
+					Bitmap bitmap = Util.decodeUri(mContext,
+ uri, size, size);
+					holder.imgPhoto.setImageBitmap(bitmap);
+				holder.labName.setText(picture.getName());
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
 
 			// set dysplay name
-			holder.labName.setText(galleryCursor.getString(3));
+
 
 			return convertView;
 		}

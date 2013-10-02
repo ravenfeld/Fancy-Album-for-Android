@@ -32,14 +32,14 @@ public class AboutActivity extends SherlockActivity {
 
 		// add AndroidViews Cards
 
-		mCardView.addCard(new FancyAboutCard("Fancy Album", "Version 1.0"));
+		mCardView.addCard(new FancyAboutCard("Ravenfeld Album", "Version 1.0"));
 		mCardView
 				.addCardToLastStack(new FancyAboutCard(
 						"Developed by",
 						"Orleonsoft , al rigth reserved , more apps and contact in www.orleonsoft.com/contact ,"
-								+ " contacto@orleonsoft.com , +573145377320"));
+								+ " contacto@orleonsoft.com , +573145377320+\n Alexis Lecanu for the modifications , http://github.com/ravenfeld"));
 		mCardView.addCardToLastStack(new FancyAboutCard("Open Source Licences",
-				"This app was developed thanks to ActionBarSherlock,CardUI"));
+						"This app was developed thanks to ActionBarSherlock,CardUI,AppMsg and PhotoView "));
 
 		// draw cards
 		mCardView.refresh();
