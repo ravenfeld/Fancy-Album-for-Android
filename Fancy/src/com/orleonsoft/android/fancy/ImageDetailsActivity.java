@@ -20,7 +20,6 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -225,7 +224,6 @@ uriImage, null,
 		shareIntent.setType("image/*");
 		shareIntent.putExtra(Intent.EXTRA_STREAM,
 				HomeActivity.galleryUri.get(mViewPager.getCurrentItem()).getUri());
-		Log.e("TEST", "position" + mViewPager.getCurrentItem());
 		return shareIntent;
 	}
 
