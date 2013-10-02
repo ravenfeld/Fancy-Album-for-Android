@@ -1,13 +1,15 @@
 package com.orleonsoft.android.fancy;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.HashMap;
 
+import uk.co.senab.photoview.PhotoView;
 import uk.co.senab.photoview.PhotoViewAttacher;
-import uk.co.senab.photoview.PhotoViewAttacher.OnPhotoTapListener;
 import android.app.ProgressDialog;
 import android.app.WallpaperManager;
+import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -15,13 +17,13 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.provider.MediaStore;
-import android.util.Log;
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.actionbarsherlock.app.SherlockActivity;
@@ -30,82 +32,71 @@ import com.actionbarsherlock.view.MenuItem;
 import com.actionbarsherlock.widget.ShareActionProvider;
 import com.devspark.appmsg.AppMsg;
 import com.orleonsoft.android.fancy.util.Util;
+import com.orleonsoft.android.fancy.views.MyViewPager;
 
 /**
- * File: ImageDetailActivity.java Autor: Yesid Lazaro Mayoriano
+ * File: ImageDetailActivity.java Autor: Yesid Lazaro Mayoriano Modified :
+ * Alexis Lecanu
  */
 
 public class ImageDetailsActivity extends SherlockActivity {
 
-	private ImageView imageViewPhoto;
-	private ProgressBar progressBar;
-	private Bitmap bitmap;
-	private PhotoViewAttacher photoViewAttacher;
-	private Uri imageUri;
-	private long _idImage;
+
+	private static HashMap<Uri, Integer> imageUriRotated;
 
 	private Intent broadcastIntent;
 
-	private Handler mHandler;
-	private Cursor mCursor;
-
+	private ViewPager mViewPager;
+	private SamplePagerAdapter mPageAdapter;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		// TODO Auto-generated method stub
 		super.onCreate(savedInstanceState);
-
-		getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
-		ColorDrawable color = new ColorDrawable(Color.BLACK);
-		color.setAlpha(20);
-		getSupportActionBar().setBackgroundDrawable(color);
+		
+		  getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
+		  ColorDrawable color = new ColorDrawable(Color.BLACK);
+		  color.setAlpha(20);
+		  getSupportActionBar().setBackgroundDrawable(color);
 		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-		mHandler = new Handler();
 
-		setContentView(R.layout.activity_image_details);
+		  
 
-		progressBar = (ProgressBar) findViewById(R.id.progressBar);
-		imageViewPhoto = (ImageView) findViewById(R.id.img_photo);
-
-		photoViewAttacher = new PhotoViewAttacher(imageViewPhoto);
-		photoViewAttacher.setOnPhotoTapListener(new OnPhotoTapListener() {
-
-			@Override
-			public void onPhotoTap(View view, float x, float y) {
-				// TODO Auto-generated method stub
-				getSupportActionBar().show();
-				hideActionBarDelayed(mHandler);
-			}
-		});
-
+		imageUriRotated = new HashMap<Uri, Integer>();
 		broadcastIntent = new Intent(AppConstants.LOAD_GALLERY_ACTION);
-		if (!getIntent().getExtras().isEmpty() || getIntent().getExtras() != null) {
+		int _idImage = 0;
+		if (!getIntent().getExtras().isEmpty()
+				|| getIntent().getExtras() != null) {
 			try {
-				_idImage = getIntent().getExtras().getLong(HomeActivity._ID_KEY);
+				_idImage = getIntent().getExtras()
+.getInt(HomeActivity._ID_KEY);
 
-				imageUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "" + _idImage);
-				new LoadImageTask().execute();
+
+
 
 			} catch (Exception e) {
-				AppMsg.makeText(ImageDetailsActivity.this, "Error loading image ", AppMsg.STYLE_ALERT).show();
+				AppMsg.makeText(ImageDetailsActivity.this,
+						"Error loading image ", AppMsg.STYLE_ALERT).show();
 			}
 
 		}
+
+		mViewPager = new MyViewPager(this);
+		setContentView(mViewPager);
+		mPageAdapter = new SamplePagerAdapter(this);
+		mViewPager.setAdapter(mPageAdapter);
+
+
+		mViewPager.setCurrentItem((_idImage));
+
 	}
 
-	private void hideActionBarDelayed(Handler handler) {
-		/*
-		 * handler.postDelayed(new Runnable() {
-		 * 
-		 * @Override public void run() { getSupportActionBar().hide(); } },
-		 * 2000);
-		 */
-	}
+
 
 	@Override
 	public void onResume() {
 		super.onResume();
 		getSupportActionBar().show();
-		hideActionBarDelayed(mHandler);
+
 	}
 
 	@Override
@@ -128,13 +119,24 @@ public class ImageDetailsActivity extends SherlockActivity {
 			// import non-scaled bitmap wallpaper
 			BitmapFactory.Options options = new BitmapFactory.Options();
 			options.inScaled = false;
-			Bitmap wallpaper = bitmap;
 
-			if (wallpaperManager.getDesiredMinimumWidth() > wallpaper.getWidth()
-					&& wallpaperManager.getDesiredMinimumHeight() > wallpaper.getHeight()) {
+			Uri uriImage = imageUri(mViewPager.getCurrentItem());
+			int rotate = 0;
+			if (imageUriRotated.containsKey(uriImage)) {
+				rotate = imageUriRotated.get(uriImage);
+			}
+
+			Bitmap wallpaper = decodeUri(this, uriImage);
+			wallpaper = Util.rotateBitmap(wallpaper, rotate, false);
+
+			;
+
+			if (wallpaperManager.getDesiredMinimumWidth() >= wallpaper
+					.getWidth()
+					&& wallpaperManager.getDesiredMinimumHeight() >= wallpaper
+							.getHeight()) {
 				// add padding to wallpaper so background image scales correctly
 				int xPadding = Math.max(0, wallpaperManager.getDesiredMinimumWidth() - wallpaper.getWidth()) / 2;
-				int yPadding = Math.max(0, wallpaperManager.getDesiredMinimumHeight() - wallpaper.getHeight()) / 2;
 				Bitmap paddedWallpaper = Bitmap.createBitmap(wallpaperManager.getDesiredMinimumWidth(), wallpaper.getHeight(),
 						Bitmap.Config.ARGB_8888);
 				int[] pixels = new int[wallpaper.getWidth() * wallpaper.getHeight()];
@@ -146,7 +148,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 				wallpaperManager.setBitmap(wallpaper);
 			}
 		} catch (IOException e) {
-			Log.e("TEST", "failed to set wallpaper");
+
 		}
 	}
 
@@ -188,7 +190,9 @@ public class ImageDetailsActivity extends SherlockActivity {
 
 	public boolean deleteImage(Uri uriImage) {
 		boolean result = false;
-		int numRows = getContentResolver().delete(imageUri, null, null);
+		
+		int numRows = getContentResolver().delete(
+				imageUri(mViewPager.getCurrentItem()), null, null);
 		if (numRows == 1) {
 			lauchFileScan();
 			result = true;
@@ -206,68 +210,23 @@ public class ImageDetailsActivity extends SherlockActivity {
 	private Intent createShareIntent() {
 		Intent shareIntent = new Intent(Intent.ACTION_SEND);
 		shareIntent.setType("image/*");
-		shareIntent.putExtra(Intent.EXTRA_STREAM, imageUri);
+		shareIntent.putExtra(Intent.EXTRA_STREAM,
+				imageUri(mViewPager.getCurrentItem()));
 		return shareIntent;
 	}
 
 	public void rotateBitmap(int grados) {
-		bitmap = Util.rotateBitmap(bitmap, grados, true);
-		imageViewPhoto.setImageBitmap(bitmap);
-		photoViewAttacher.update();
+
+		Uri imageUriRotate = imageUri(mViewPager.getCurrentItem());
+		int rotate = 0;
+		if (imageUriRotated.containsKey(imageUriRotate)) {
+			rotate = imageUriRotated.get(imageUriRotate);
+		}
+		imageUriRotated.put(imageUriRotate, grados + rotate);
+		mPageAdapter.notifyDataSetChanged();
 	}
 
-	class LoadImageTask extends AsyncTask<Void, Void, Boolean> {
-		@Override
-		protected void onPreExecute() {
-			// TODO Auto-generated method stub
-			super.onPreExecute();
-			progressBar.setVisibility(View.VISIBLE);
-		}
 
-		@Override
-		protected Boolean doInBackground(Void... params) {
-			// TODO Auto-generated method stub
-			Boolean isThereError = false;
-			if (isCancelled()) {
-				ImageDetailsActivity.this.runOnUiThread(new Runnable() {
-
-					@Override
-					public void run() {
-						if (progressBar != null) {
-							progressBar.setVisibility(View.GONE);
-						}
-					}
-				});
-
-			}
-			try {
-				bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
-
-			} catch (Exception e) {
-				isThereError = true;
-			}
-
-			return isThereError;
-		}
-
-		@Override
-		protected void onPostExecute(Boolean isThereError) {
-			// TODO Auto-generated method stub
-			super.onPostExecute(isThereError);
-			progressBar.setVisibility(View.GONE);
-			if (isThereError) {
-				AppMsg.makeText(ImageDetailsActivity.this, "Error loading image,try again ", AppMsg.STYLE_ALERT).show();
-
-			} else {
-				imageViewPhoto.setVisibility(View.VISIBLE);
-				imageViewPhoto.setImageBitmap(bitmap);
-				photoViewAttacher.update();
-
-			}
-
-		}
-
-	}
 
 	class DeleteImageTask extends AsyncTask<Void, Void, Boolean> {
 		ProgressDialog progressDialog;
@@ -302,7 +261,7 @@ public class ImageDetailsActivity extends SherlockActivity {
 
 			}
 			try {
-				if (!deleteImage(imageUri)) {
+				if (!deleteImage(imageUri(mViewPager.getCurrentItem()))) {
 					isThereError = true;
 				}
 			} catch (Exception e) {
@@ -326,6 +285,113 @@ public class ImageDetailsActivity extends SherlockActivity {
 
 		}
 
+	}
+
+	private static Uri imageUri(int position) {
+		HomeActivity.galleryCursor.moveToPosition(position);
+		int _id = HomeActivity.galleryCursor.getInt(0);
+		Uri imageUri = Uri.withAppendedPath(
+				MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "" + _id);
+
+
+		return imageUri;
+	}
+	static class SamplePagerAdapter extends PagerAdapter {
+		private final Context mContext;
+		PhotoViewAttacher photoViewAttacher;
+
+		public SamplePagerAdapter(Context context) {
+			mContext = context;
+		}
+		@Override
+		public int getCount() {
+			return HomeActivity.galleryCursor.getCount();
+		}
+
+		@Override
+		public View instantiateItem(ViewGroup container, int position) {
+			LayoutInflater inflater = (LayoutInflater) container.getContext()
+					.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+			View view = inflater.inflate(R.layout.activity_image_details, null);
+
+			PhotoView imageViewPhoto = (PhotoView) view
+					.findViewById(R.id.img_photo);
+
+			
+
+
+				imageViewPhoto.setVisibility(View.VISIBLE);
+				Uri uriImage = imageUri(position);
+				int rotate =0;
+				if(imageUriRotated.containsKey(uriImage)){
+					rotate = imageUriRotated.get(uriImage);
+				}
+
+			try {
+				Bitmap bitmap = decodeUri(mContext, uriImage);
+				bitmap = Util.rotateBitmap(bitmap, rotate, false);
+				imageViewPhoto.setImageBitmap(bitmap);
+
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			((ViewPager) container).addView(view, 0);
+			return view;
+
+		}
+
+		@Override
+		public void destroyItem(ViewGroup container, int position, Object object) {
+			container.removeView((View) object);
+		}
+
+		@Override
+		public boolean isViewFromObject(View view, Object object) {
+			return view == object;
+		}
+
+		@Override
+		public int getItemPosition(Object object) {
+			return POSITION_NONE;
+		}
+
+	}
+
+	private static Bitmap decodeUri(Context context, Uri selectedImage)
+			throws FileNotFoundException {
+		BitmapFactory.Options o = new BitmapFactory.Options();
+		o.inJustDecodeBounds = true;
+		BitmapFactory.decodeStream(
+context.getContentResolver()
+				.openInputStream(selectedImage), null, o);
+		WallpaperManager wallpaperManager = WallpaperManager
+				.getInstance(context);
+		final int REQUIRED_SIZE_WIDHT = wallpaperManager
+				.getDesiredMinimumWidth();
+		final int REQUIRED_SIZE_HEIGHT = wallpaperManager
+				.getDesiredMinimumHeight();
+
+		int width_tmp = o.outWidth;
+		int height_tmp = o.outHeight;
+
+
+		int scale = 1;
+		while (true) {
+			if (width_tmp < REQUIRED_SIZE_WIDHT
+					|| height_tmp < REQUIRED_SIZE_HEIGHT) {
+				break;
+			}
+			width_tmp /= 2;
+			height_tmp /= 2;
+			scale *= 2;
+		}
+		BitmapFactory.Options o2 = new BitmapFactory.Options();
+		o2.inSampleSize = scale;
+		return BitmapFactory.decodeStream(context.getContentResolver()
+				.openInputStream(selectedImage), null, o2);
 	}
 
 }

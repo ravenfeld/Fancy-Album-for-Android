@@ -12,6 +12,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -20,9 +21,11 @@ import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemLongClickListener;
@@ -51,7 +54,7 @@ public class HomeActivity extends SherlockActivity implements
 	private AlbumStorageDirFactory mAlbumStorageDirFactory = null;
 
 	private LayoutInflater mLayoutInflater;
-	private Cursor galleryCursor;
+	public static Cursor galleryCursor;
 	private GridView gridPhotos;
 	private AdapterGridPhotos adapterGridPhotos;
 	private ActionMode mMode;
@@ -70,6 +73,7 @@ public class HomeActivity extends SherlockActivity implements
 		} else {
 			mAlbumStorageDirFactory = new BaseAlbumDirFactory();
 		}
+
 		new LoadPhotoAlbumTask().execute();
 
 	}
@@ -90,7 +94,7 @@ public class HomeActivity extends SherlockActivity implements
 
 	}
 
-	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+	private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			Log.d("FANCY", "RECEIVER");
@@ -126,6 +130,7 @@ public class HomeActivity extends SherlockActivity implements
 			galleryAddPic();
 			mCurrentPhotoPath = null;
 			new Handler().postDelayed(new Runnable() {
+				@Override
 				public void run() {
 					sendBroadcast(new Intent(AppConstants.LOAD_GALLERY_ACTION));
 				};
@@ -272,6 +277,7 @@ public class HomeActivity extends SherlockActivity implements
 			if (isCancelled()) {
 				HomeActivity.this.runOnUiThread(new Runnable() {
 
+					@Override
 					public void run() {
 						if (mProgressDialog != null) {
 							mProgressDialog.dismiss();
@@ -359,8 +365,15 @@ public class HomeActivity extends SherlockActivity implements
 						.findViewById(R.id.img_thumbnail);
 				holder.labName = (TextView) convertView
 						.findViewById(R.id.lab_dysplay_name);
+				Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
+						.getDefaultDisplay();
+				Point diplaySize = new Point();
+				display.getSize(diplaySize);
+				int size = diplaySize.x > diplaySize.y ? diplaySize.y / 2
+						: diplaySize.x / 2;
 				convertView
-						.setLayoutParams(new GridView.LayoutParams(100, 100));
+.setLayoutParams(new GridView.LayoutParams(size,
+						size));
 				convertView.setTag(holder);
 			}
 			holder = (ViewHolder) convertView.getTag();
@@ -368,7 +381,7 @@ public class HomeActivity extends SherlockActivity implements
 			int _id = galleryCursor.getInt(0);
 			holder.imgPhoto.setImageBitmap(MediaStore.Images.Thumbnails
 					.getThumbnail(getContentResolver(), _id,
-							MediaStore.Images.Thumbnails.MICRO_KIND, null));
+							MediaStore.Images.Thumbnails.MINI_KIND, null));
 
 			// set dysplay name
 			holder.labName.setText(galleryCursor.getString(3));
@@ -414,7 +427,7 @@ public class HomeActivity extends SherlockActivity implements
 			Intent intentDetail = new Intent(HomeActivity.this,
 					ImageDetailsActivity.class);
 			intentDetail.putExtra(_ID_KEY,
-					adapterGridPhotos.getItemId(position));
+ position);
 			startActivity(intentDetail);
 		} else {
 			if (view.isSelected()) {
