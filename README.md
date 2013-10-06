@@ -9,6 +9,13 @@ fancy photo gallery implementation  using:
 * [http://johnkil.github.com/Android-AppMsg/] 
 * [https://github.com/chrisbanes/PhotoView]
 
+
+Modified by Ravenfeld
+-------
+Ability to select a wallpaper image
+Photo album of selected resources or sd card
+
+
 Screenshots
 -------
 
