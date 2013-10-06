@@ -13,6 +13,7 @@ fancy photo gallery implementation  using:
 Modified by Ravenfeld
 -------
 Ability to select a wallpaper image
+
 Photo album of selected resources or sd card
 
 
